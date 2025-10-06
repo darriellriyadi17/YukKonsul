@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YukKONSUL - Aplikasi Konseling Siswa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Tailwind dark mode setup
+        if (localStorage.getItem('yukKonsulTheme') === 'dark' || (!('yukKonsulTheme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+    </script>
+    <style>
+        .booked { background-color: #f43f5e !important; color: white !important; cursor: not-allowed; opacity: 0.7; }
+        .selected-counselor { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.4); transform: translateY(-4px); }
+        .transition-all { transition: all 0.3s ease-in-out; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .prose h4 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .prose h5 { font-size: 1rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .prose p, .prose ul { color: #475569; }
+        .dark .prose p, .dark .prose ul, .dark .prose h4, .dark .prose h5 { color: #cbd5e1; }
+        .prose ul { padding-left: 1.5rem; list-style-type: disc; }
+        .prose li { margin-bottom: 0.5rem; }
+        .prose blockquote { border-left: 4px solid #e2e8f0; padding-left: 1rem; font-style: italic; color: #64748b; }
+        .dark .prose blockquote { border-left-color: #475569; color: #94a3b8; }
+        .admin-table th { background-color: #374151; color: white; }
+        .mood-emoji { cursor: pointer; filter: grayscale(100%); opacity: 0.6; transform: scale(1); transition: all 0.2s ease-in-out; }
+        .mood-emoji:hover { filter: grayscale(0%); opacity: 1; transform: scale(1.1); }
+        .mood-emoji.selected { filter: grayscale(0%); opacity: 1; transform: scale(1.15); box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.5); border-radius: 9999px; }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-gray-800 dark:text-gray-200">
+
+    <div id="app-container" class="container mx-auto p-4 sm:p-6 md:p-8 max-w-5xl min-h-screen">
+
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <div class="flex justify-center items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-teal-600"><path d="M12 22a6 6 0 0 0 6-6v-4a6 6 0 0 0-12 0v4a6 6 0 0 0 6 6Z"/><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 12v6"/><path d="M18 12a6 6 0 0 0-6-6"/><path d="M6 12a6 6 0 0 1 6-6"/></svg>
+                <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-white">YukKONSUL</h1>
+            </div>
+            <p class="text-gray-500 dark:text-gray-400 text-lg">Platform bimbingan dan konseling modern untuk membantumu.</p>
+        </header>
+        
+        <div id="loadingIndicator" class="text-center p-8">
+            <p class="text-gray-500 dark:text-gray-400">Memuat aplikasi...</p>
+        </div>
+        
+        <section id="loginChoiceSection" class="hidden max-w-md mx-auto text-center bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Selamat Datang!</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-8">Silakan masuk untuk melanjutkan.</p>
+            <div class="space-y-4">
+                <button onclick="showLogin('student')" class="w-full bg-teal-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all">Login Sebagai Siswa</button>
+                <button onclick="showLogin('admin')" class="w-full bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-800 transition-all">Login Sebagai Admin</button>
+            </div>
+        </section>
+
+        <section id="studentLoginSection" class="hidden max-w-md mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
+            <h2 class="text-2xl font-bold text-center mb-6">Login Siswa</h2>
+            <div class="space-y-4">
+                <div><label for="studentName" class="block text-sm font-medium text-gray-600 dark:text-gray-300">Nama Lengkap</label><input type="text" id="studentName" placeholder="Tulis nama lengkapmu" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-800 dark:text-white"></div>
+                <p id="studentLoginError" class="text-red-500 text-sm hidden">Nama tidak boleh kosong.</p>
+                <button onclick="handleStudentLogin()" class="w-full bg-teal-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all">Masuk</button>
+                <button onclick="showLoginChoice()" class="w-full text-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white mt-2">‹ Kembali</button>
+            </div>
+        </section>
+        
+        <section id="adminLoginSection" class="hidden max-w-md mx-auto bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-lg">
+            <h2 class="text-2xl font-bold text-center mb-6">Login Admin</h2>
+            <div class="space-y-4">
+                <div><label for="adminUsername" class="block text-sm font-medium text-gray-600 dark:text-gray-300">Username</label><input type="text" id="adminUsername" placeholder="e.g., superadmin" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-800 dark:text-white"></div>
+                <div><label for="adminPassword" class="block text-sm font-medium text-gray-600 dark:text-gray-300">Password</label><input type="password" id="adminPassword" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-gray-800 dark:text-white"></div>
+                <p id="adminLoginError" class="text-red-500 text-sm hidden">Username atau Password salah.</p>
+                <button onclick="handleAdminLogin()" class="w-full bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-800 transition-all">Masuk</button>
+                <button onclick="showLoginChoice()" class="w-full text-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white mt-2">‹ Kembali</button>
+            </div>
+        </section>
+
+        <main id="mainApp" class="hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-md mb-8">
+                <div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Selamat datang,</p>
+                    <p id="welcomeMessage" class="font-bold text-xl text-gray-800 dark:text-white"></p>
+                </div>
+                <div class="flex items-center gap-4 mt-3 sm:mt-0 w-full sm:w-auto">
+                    <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700" title="Ganti Tema"><svg id="theme-icon-light" class="w-6 h-6 text-gray-600 dark:text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg><svg id="theme-icon-dark" class="w-6 h-6 text-gray-600 dark:text-gray-300 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg></button>
+                    <button id="accountSettingsButton" onclick="openAccountSettingsModal()" class="hidden text-sm font-medium text-teal-600 hover:text-teal-700 px-4 py-2 rounded-lg hover:bg-teal-50 dark:hover:bg-slate-700 w-full sm:w-auto">Pengaturan Akun</button>
+                    <button onclick="handleLogout()" class="w-full sm:w-auto bg-rose-500 text-white font-semibold py-2 px-5 rounded-lg hover:bg-rose-600 transition-all">Logout</button>
+                </div>
+            </div>
+
+            <div id="adminDashboardSection" class="hidden bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Dasbor Admin: Jadwal Janji Temu</h2>
+                <div id="adminDashboardContainer"></div>
+            </div>
+            
+            <div id="selfHelpSection" class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Alat Bantu Diri</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                    <div class="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl transition-all card-hover flex flex-col"><div class="flex-shrink-0 w-14 h-14 bg-blue-500 rounded-lg flex items-center justify-center mb-4"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></div><h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-white">Penetapan Tujuan</h3><p class="text-gray-500 dark:text-gray-400 text-sm mb-4 flex-grow">Catat dan lacak tujuan pribadimu untuk tetap termotivasi.</p><button onclick="openGoalModal()" class="w-full bg-white dark:bg-slate-600 text-blue-600 dark:text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-500 transition-all mt-auto">Buka Tujuan</button></div>
+                    <div class="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl transition-all card-hover flex flex-col"><div class="flex-shrink-0 w-14 h-14 bg-amber-500 rounded-lg flex items-center justify-center mb-4"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg></div><h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-white">Motivasi Kutipan</h3><p class="text-gray-500 dark:text-gray-400 text-sm mb-4 flex-grow">Dapatkan kutipan penyemangat baru untuk harimu.</p><button onclick="showMotivation()" class="w-full bg-white dark:bg-slate-600 text-amber-600 dark:text-white font-semibold py-3 px-4 rounded-lg hover:bg-amber-50 dark:hover:bg-slate-500 transition-all mt-auto">Dapatkan Kutipan</button></div>
+                </div>
+            </div>
+
+            <div id="journalSection" class="hidden bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4">Bagaimana perasaanmu hari ini?</h2>
+                <div id="journalInputSection"><div class="flex justify-around items-center mb-4 text-4xl"><span class="mood-emoji" onclick="selectMood('😄')" title="Senang">😄</span><span class="mood-emoji" onclick="selectMood('😐')" title="Biasa Saja">😐</span><span class="mood-emoji" onclick="selectMood('😔')" title="Sedih">😔</span><span class="mood-emoji" onclick="selectMood('😟')" title="Cemas">😟</span><span class="mood-emoji" onclick="selectMood('😴')" title="Lelah">😴</span></div><textarea id="journalNote" class="w-full p-2 border dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 focus:ring-2 focus:ring-teal-500" placeholder="Ada yang ingin kamu ceritakan? (Opsional)"></textarea><div class="flex justify-between items-center mt-4"><button onclick="openJournalHistoryModal()" class="text-sm text-teal-600 font-semibold hover:underline">Lihat Riwayat Jurnal</button><button onclick="saveJournalEntry()" class="bg-teal-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-teal-700 transition-all">Simpan</button></div></div>
+                 <div id="journalSavedSection" class="hidden text-center py-4"><p class="text-gray-600 dark:text-gray-300 mb-2">Terima kasih telah berbagi. Jurnal hari ini sudah disimpan.</p><p class="text-2xl" id="savedMoodEmoji"></p><button onclick="openJournalHistoryModal()" class="mt-4 text-sm text-teal-600 font-semibold hover:underline">Lihat Riwayat Jurnal</button></div>
+            </div>
+            
+            <div id="counselingSection" class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Pilih Guru Konseling</h2>
+                <div id="counselor-list" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4"></div>
+            </div>
+            
+            <div id="appointment" class="hidden bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-1">Buat Janji Temu</h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">dengan <span id="selectedCounselorName" class="font-semibold text-gray-800 dark:text-white"></span></p>
+                <div id="timeSlots" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+                <div id="bookingConfirmation" class="mt-6 text-center p-4 rounded-lg bg-green-50 dark:bg-green-900/50 text-green-700 dark:text-green-300 hidden"></div>
+            </div>
+            
+            <div id="otherServicesSection" class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Layanan Lainnya</h2>
+                <div id="services-section" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4"></div>
+            </div>
+
+            <div id="universityInfoSection" class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Info Perguruan Tinggi</h2>
+                <div id="university-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4"></div>
+            </div>
+
+            <div id="academicSection" class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md mb-8">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Info Akademik & Karir</h2>
+                <div id="academic-career-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4"></div>
+            </div>
+
+            <div id="educationMaterialSection" class="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold mb-4 border-b dark:border-slate-600 pb-3">Materi Edukasi</h2>
+                <div id="education-section" class="space-y-4 pt-4"></div>
+            </div>
+        </main>
+        
+        <!-- Modals -->
+        <div id="generalModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6 relative max-h-[90vh] overflow-y-auto"><button onclick="closeGeneralModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button><h3 id="generalModalTitle" class="text-2xl font-bold mb-4 text-gray-800 dark:text-white"></h3><div id="generalModalContent" class="prose max-w-none"></div></div></div>
+        <div id="motivationModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden z-50"><div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-lg w-full p-8 relative"><button onclick="closeMotivation()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button><h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white">Kutipan Motivasi</h3><blockquote class="border-l-4 border-teal-400 pl-4"><p id="motivationQuote" class="text-lg italic text-gray-600 dark:text-gray-300"></p></blockquote><button onclick="showMotivation(true)" class="mt-6 text-sm text-teal-600 font-semibold hover:underline">Dapatkan kutipan lain</button></div></div>
+        <div id="journalHistoryModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6 relative max-h-[90vh] flex flex-col"><button onclick="closeJournalHistoryModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button><h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white border-b dark:border-slate-600 pb-2">Riwayat Jurnal Perasaan</h3><div id="journalHistoryContent" class="overflow-y-auto space-y-4 py-4"></div></div></div>
+        <div id="goalModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-2xl w-full p-6 relative max-h-[90vh] flex flex-col"><button onclick="closeGoalModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button><h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-white border-b dark:border-slate-600 pb-2">Tujuan Saya</h3><div class="py-4"><div class="flex gap-2"><input type="text" id="newGoalInput" class="flex-grow px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Tulis tujuan barumu..."><button onclick="addGoal()" class="bg-teal-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-teal-700 transition-all">Tambah</button></div></div><div id="goalList" class="overflow-y-auto space-y-3 mt-4"></div></div></div>
+        <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-sm w-full p-6 text-center"><p id="confirmMessage" class="text-lg mb-6"></p><div class="flex justify-center gap-4"><button id="confirmYes" class="bg-red-500 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-600">Ya</button><button id="confirmNo" class="bg-gray-300 dark:bg-slate-600 text-gray-800 dark:text-white font-semibold py-2 px-6 rounded-lg hover:bg-gray-400 dark:hover:bg-slate-500">Tidak</button></div></div></div>
+        <div id="accountSettingsModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-50"><div class="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-8 relative"><button onclick="closeAccountSettingsModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">&times;</button><h3 class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Pengaturan Akun</h3><div class="space-y-4"><p id="accountSettingsMessage" class="text-center text-sm text-green-500"></p><div><label for="newUsername" class="block text-sm font-medium text-gray-600 dark:text-gray-300">Username Baru</label><input type="text" id="newUsername" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"></div><div><label for="newPassword" class="block text-sm font-medium text-gray-600 dark:text-gray-300">Password Baru (opsional)</label><input type="password" id="newPassword" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"></div><div><label for="confirmNewPassword" class="block text-sm font-medium text-gray-600 dark:text-gray-300">Konfirmasi Password Baru</label><input type="password" id="confirmNewPassword" class="mt-1 block w-full px-4 py-3 bg-gray-50 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"></div><p id="accountChangeError" class="text-red-500 text-sm hidden"></p><button onclick="handleAccountChange()" class="w-full bg-teal-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all">Simpan Perubahan</button></div></div></div>
+    </div>
+    
+    <script>
+        // --- Konfigurasi & State Aplikasi ---
+        let initialAdminAccounts, activeAdminAccounts, counselors, servicesContent, educationContent, selectionPathContent, studyProgramContent, universityContent, quoteList;
+        let currentUser = null, selectedCounselorId = null, localAppointments = { gofar: [], rohman: [] }, journalEntries = [], selectedMood = null, userGoals = [], confirmCallback = null;
+        
+        // --- Elemen DOM ---
+        const loadingIndicator = document.getElementById('loadingIndicator'), loginChoiceSection = document.getElementById('loginChoiceSection'), studentLoginSection = document.getElementById('studentLoginSection'), adminLoginSection = document.getElementById('adminLoginSection'), mainApp = document.getElementById('mainApp'), adminDashboardSection = document.getElementById('adminDashboardSection'), journalSection = document.getElementById('journalSection');
+
+        // --- Inisialisasi Data ---
+        function initializeData() {
+            initialAdminAccounts = {'superadmin':{password:'superpass',name:'Super Admin'},'gofaradmin':{password:'gofarpass',name:'Pak Gofar'},'rohmanadmin':{password:'rohmanpass',name:'Pak Rohman'}};
+            counselors = {gofar:{id:'gofar',name:'Pak Gofar',title:'Konselor Sebaya & Karir',phone:'6283147559807'},rohman:{id:'rohman',name:'Pak Rohman',title:'Konselor Akademik & Pribadi',phone:'6281388464385'}};
+            servicesContent = {'whatsapp':{title:'Chat Privat (WA)',description:'Hubungi konselor via WhatsApp untuk sesi personal.',icon:`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8 text-white"><path d="m3 21 1.65-3.8a9 9 0 1 1 3.4 2.9l-5.05.9" /><path d="m9 10 2 2 4-4" /></svg>`,color:'bg-green-500',button:`<a id="wa-gofar" href="#" target="_blank" class="w-full text-center bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 text-gray-700 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-500 transition-all block mb-2">Chat Pak Gofar</a><a id="wa-rohman" href="#" target="_blank" class="w-full text-center bg-white dark:bg-slate-600 border border-gray-300 dark:border-slate-500 text-gray-700 dark:text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-500 transition-all block">Chat Pak Rohman</a>`}};
+            educationContent = {'stres':{title:'Mengelola Stres Saat Ujian',icon:`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-white"><circle cx="12" cy="12" r="10" /><path d="M16 16s-1.5-2-4-2-4 2-4 2" /><path d="M9 9l.01 0" /><path d="M15 9l.01 0" /></svg>`,color:'bg-rose-500',content:`<h4>Kenapa Stres Muncul?</h4><p>Stres saat ujian adalah hal yang normal. Ini adalah respons alami tubuh terhadap tekanan untuk berprestasi. Sedikit stres bisa memotivasi, tapi terlalu banyak bisa mengganggu.</p><h4>Cara Mengelola Stres:</h4><ul><li><strong>Belajar Teratur:</strong> Jangan menumpuk materi di akhir. Buat jadwal belajar dan cicil sedikit demi sedikit.</li><li><strong>Istirahat Cukup:</strong> Tidur 7-8 jam semalam sangat penting agar otak bisa bekerja optimal.</li><li><strong>Olahraga Ringan:</strong> Jalan santai atau peregangan selama 15-30 menit bisa melepaskan ketegangan.</li></ul><p>Ingat, hasil ujian tidak mendefinisikan dirimu. Yang penting adalah usaha terbaikmu!</p>`},'belajar':{title:'Tips Belajar Efektif',icon:`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-white"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>`,color:'bg-sky-500',content:`<h4>Bukan Sekadar Menghafal</h4><p>Belajar efektif adalah tentang memahami konsep, bukan hanya menghafal. Berikut beberapa teknik yang bisa kamu coba:</p><ul><li><strong>Teknik Pomodoro:</strong> Belajar fokus selama 25 menit, lalu istirahat 5 menit.</li><li><strong>Buat Peta Konsep (Mind Mapping):</strong> Visualisasikan materi dengan cabang-cabang ide.</li><li><strong>Active Recall:</strong> Setelah membaca, coba jelaskan kembali materinya dengan bahasamu sendiri tanpa melihat buku.</li></ul>`}};
+            selectionPathContent = {'snbp':{title:'SNBP 2025',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`,color:'bg-green-500',content:`<h4>Apa itu SNBP?</h4><p>SNBP (Seleksi Nasional Berdasarkan Prestasi) adalah jalur seleksi masuk perguruan tinggi negeri (PTN) yang menggunakan nilai rapor dan prestasi akademik/non-akademik lainnya. Jalur ini sering disebut 'jalur undangan'.</p><h4>Bagaimana Peluang Lolos?</h4><p>Peluang kelulusan tidak hanya ditentukan oleh nilai rapormu saja, tapi merupakan kombinasi dari beberapa faktor:</p><ul><li><strong>Rata-rata Nilai Rapor:</strong> Semakin tinggi dan stabil nilaimu, semakin baik.</li><li><strong>Akreditasi Sekolah:</strong> Sekolah dengan akreditasi A biasanya mendapatkan kuota siswa yang lebih banyak.</li><li><strong>Peringkat di Sekolah:</strong> Kamu harus termasuk dalam persentase siswa terbaik di sekolahmu yang berhak mendaftar (disebut siswa 'eligible').</li><li><strong>Rekam Jejak Alumni:</strong> Jika banyak alumni sekolahmu yang berprestasi di PTN tujuan, ini bisa menjadi nilai tambah.</li><li><strong>Pilihan Program Studi:</strong> Memilih prodi yang sangat kompetitif akan lebih sulit dibandingkan prodi dengan persaingan lebih rendah.</li></ul><p>Jadi, tidak ada 'persentase' pasti. Fokuslah untuk mempertahankan nilai terbaik dan berkonsultasi dengan guru BK untuk strategi pemilihan jurusan terbaik.</p>`},'snbt':{title:'SNBT 2025',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>`,color:'bg-red-500',content:`<h4>Apa itu SNBT?</h4><p>SNBT (Seleksi Nasional Berdasarkan Tes) adalah jalur seleksi masuk PTN melalui Ujian Tulis Berbasis Komputer (UTBK). Semua siswa bisa mengikuti jalur ini, terlepas dari peringkat di sekolah.</p><h4>Materi yang Diujikan</h4><p>Tes ini berfokus pada potensi skolastik, yaitu kemampuan penalaran dan pemecahan masalah. Materi utamanya meliputi:</p><ul><li><strong>Tes Potensi Skolastik (TPS):</strong> Mengukur kemampuan kognitif seperti penalaran umum, pemahaman bacaan, pengetahuan kuantitatif.</li><li><strong>Literasi dalam Bahasa Indonesia & Inggris:</strong> Mengukur kemampuan memahami dan menganalisis teks.</li><li><strong>Penalaran Matematika:</strong> Mengukur kemampuan berpikir matematis untuk memecahkan masalah.</li></ul><h5>Latihan Soal Singkat</h5><p>Coba jawab pertanyaan di bawah ini untuk menguji kemampuanmu!</p><blockquote><strong>Penalaran Umum:</strong> Semua dokter adalah orang pintar. Beberapa orang pintar suka membaca buku. Kesimpulan yang PALING TEPAT adalah...<br>A. Semua dokter suka membaca buku.<br>B. Beberapa dokter suka membaca buku.<br>C. Beberapa orang yang suka membaca buku adalah dokter.<br>D. Tidak dapat disimpulkan.</blockquote><blockquote><strong>Pengetahuan Kuantitatif:</strong> Jika x = 1/16 dan y = 16%, maka...<br>A. x > y<br>B. x < y<br>C. x = y<br>D. Hubungan x dan y tidak dapat ditentukan.</blockquote><p>Jawaban: Penalaran Umum (D), Pengetahuan Kuantitatif (B)</p>`},'mandiri':{title:'Jalur Mandiri',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m-1 4h1m5-4h1m-1 4h1m-1-4h1m-1 4h1"></path></svg>`,color:'bg-blue-500',content:`<h4>Apa itu Jalur Mandiri?</h4><p>Jalur Mandiri adalah seleksi yang diselenggarakan secara independen oleh masing-masing PTN. Setiap universitas memiliki aturan, jadwal, dan materi tes yang berbeda-beda.</p><h4>Yang Perlu Diperhatikan</h4><ul><li><strong>Jadwal:</strong> Biasanya dibuka setelah pengumuman SNBT. Pantau terus situs web resmi PTN incaranmu.</li><li><strong>Materi Ujian:</strong> Bisa berupa tes tulis, wawancara, penilaian portofolio, atau kombinasi dari beberapa metode.</li><li><strong>Biaya:</strong> Umumnya, biaya pendaftaran dan Uang Kuliah Tunggal (UKT) jalur mandiri lebih tinggi dibandingkan jalur SNBP/SNBT.</li></ul>`},'spanptkin':{title:'SPAN-PTKIN',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14l9-5-9-5-9 5 9 5z"></path><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-5.998 12.078 12.078 0 01.665-6.479L12 14z"></path><path d="M12 14l9-5-9-5-9 5 9 5z" opacity=".2"></path></svg>`,color:'bg-emerald-500',content:`<h4>Apa itu SPAN-PTKIN?</h4><p>SPAN-PTKIN adalah singkatan dari Seleksi Prestasi Akademik Nasional Perguruan Tinggi Keagamaan Islam Negeri. Jalur ini mirip dengan SNBP, tetapi dikhususkan untuk masuk ke UIN, IAIN, atau STAIN di seluruh Indonesia.</p><p>Seleksinya juga didasarkan pada nilai rapor dan prestasi lainnya, tanpa tes tulis. Pendaftaran biasanya dilakukan secara kolektif oleh sekolah.</p>`}};
+            studyProgramContent = {'saintek':{title:'Kelompok Saintek',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547a2 2 0 00-.547 1.806l.477 2.387a6 6 0 00.517 3.86l.158.318a6 6 0 003.86.517l2.387.477a2 2 0 001.806-.547a2 2 0 00.547-1.806l-.477-2.387a6 6 0 00-.517-3.86l-.158-.318z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.243 5.757a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L.95 6.21a2 2 0 00-1.806.547a2 2 0 00-.547 1.806l.477 2.387a6 6 0 00.517 3.86l.158.318a6 6 0 003.86.517l2.387.477a2 2 0 001.806-.547a2 2 0 00.547-1.806l-.477-2.387a6 6 0 00-.517-3.86l-.158-.318z"></path></svg>`,color:'bg-cyan-500',content:`<h4>Sains dan Teknologi (Saintek)</h4><p>Kelompok ini berfokus pada ilmu eksakta, logika, dan penerapan teknologi. Cocok untuk kamu yang menyukai Matematika, Fisika, Kimia, dan Biologi.</p><h4>Contoh Program Studi:</h4><ul><li>Teknik Informatika</li><li>Kedokteran</li><li>Arsitektur</li><li>Statistika</li><li>Ilmu Gizi</li></ul><h4>Prospek Karir:</h4><p>Insinyur, dokter, programmer, arsitek, peneliti, analis data, ahli gizi, dan profesi lain di bidang teknologi dan kesehatan.</p>`},'soshum':{title:'Kelompok Soshum',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`,color:'bg-orange-500',content:`<h4>Sosial dan Humaniora (Soshum)</h4><p>Kelompok ini mempelajari interaksi manusia, masyarakat, budaya, dan sistem sosial. Cocok untuk kamu yang tertarik dengan Sejarah, Sosiologi, Ekonomi, dan Bahasa.</p><h4>Contoh Program Studi:</h4><ul><li>Ilmu Komunikasi</li><li>Hukum</li><li>Manajemen</li><li>Psikologi</li><li>Hubungan Internasional</li></ul><h4>Prospek Karir:</h4><p>Pengacara, manajer, psikolog, diplomat, jurnalis, akuntan, spesialis HRD, dan profesi lain di bidang bisnis, hukum, dan sosial.</p>`}};
+            universityContent = {'ui':{title:'Universitas Indonesia (UI)',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m-1 4h1m5-4h1m-1 4h1m-1-4h1m-1 4h1"></path></svg>`,color:'bg-yellow-500',content:`<h4>Universitas Indonesia (UI)</h4><p>Dikenal dengan julukan 'Kampus Perjuangan' dan almamater 'Jaket Kuning'. UI adalah salah satu universitas tertua dan paling komprehensif di Indonesia, dengan ragam program studi dari kesehatan hingga sosial politik.</p>`},'itb':{title:'Institut Teknologi Bandung (ITB)',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>`,color:'bg-blue-500',content:`<h4>Institut Teknologi Bandung (ITB)</h4><p>Dikenal sebagai 'Kampus Ganesha', ITB adalah kiblat pendidikan teknik dan sains di Indonesia. Sangat prestisius untuk program studi seperti Teknik Informatika, Arsitektur, dan Desain Komunikasi Visual.</p>`},'ugm':{title:'Universitas Gadjah Mada (UGM)',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>`,color:'bg-indigo-500',content:`<h4>Universitas Gadjah Mada (UGM)</h4><p>Berlokasi di Yogyakarta, UGM dikenal sebagai 'Kampus Kerakyatan'. Salah satu universitas terbesar di Indonesia yang unggul di berbagai bidang, mulai dari kedokteran, hukum, hingga ilmu budaya.</p>`},'ipb':{title:'IPB University',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2V7a2 2 0 00-2-2H5zM5 14a2 2 0 00-2 2v3a2 2 0 002 2h3a2 2 0 002-2v-3a2 2 0 00-2-2H5z"></path></svg>`,color:'bg-green-600',content:`<h4>IPB University</h4><p>Sebelumnya dikenal sebagai Institut Pertanian Bogor. IPB adalah perguruan tinggi terkemuka di dunia dalam bidang pertanian dan ilmu hayati. Terletak di Bogor, kota yang dekat dengan alam.</p>`},'unpad':{title:'Universitas Padjadjaran (Unpad)',icon:`<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>`,color:'bg-sky-600',content:`<h4>Universitas Padjadjaran (Unpad)</h4><p>Berpusat di Jatinangor dan Bandung, Unpad sangat kuat dalam program studi rumpun sosial seperti Ilmu Komunikasi, Hukum, dan Manajemen, serta memiliki Fakultas Kedokteran yang sangat dihormati.</p>`}};
+            quoteList = ["Pendidikan adalah senjata paling ampuh yang bisa kamu gunakan untuk mengubah dunia.", "Jangan takut gagal. Takutlah jika kamu tidak pernah mencoba.", "Satu-satunya cara untuk melakukan pekerjaan hebat adalah dengan mencintai apa yang kamu lakukan.", "Masa depan adalah milik mereka yang menyiapkan hari ini.", "Belajar dari kemarin, hidup untuk hari ini, berharap untuk besok."];
+        }
+
+        // --- Alur Aplikasi & Render ---
+        window.onload = () => { 
+            initializeData();
+            loadDataFromStorage(); 
+            renderStaticContent(); 
+            renderCounselorCards(); 
+            checkLoginStatus(); 
+            updateThemeIcon(); 
+            document.getElementById('confirmYes').onclick = () => { if(confirmCallback) confirmCallback(); closeConfirmModal(); };
+            document.getElementById('confirmNo').onclick = closeConfirmModal;
+        };
+
+        function loadDataFromStorage() {
+            try {
+                const savedAppointments = localStorage.getItem('yukKonsulAppointments');
+                if (savedAppointments) localAppointments = JSON.parse(savedAppointments);
+                if (!localAppointments.gofar || !localAppointments.rohman) throw new Error("Invalid appointments data");
+            } catch (e) {
+                localAppointments = { gofar: [], rohman: [] };
+                localStorage.setItem('yukKonsulAppointments', JSON.stringify(localAppointments));
+            }
+            
+            try {
+                const savedAdminAccounts = localStorage.getItem('yukKonsulAdminAccounts');
+                activeAdminAccounts = savedAdminAccounts ? JSON.parse(savedAdminAccounts) : JSON.parse(JSON.stringify(initialAdminAccounts));
+            } catch (e) {
+                activeAdminAccounts = JSON.parse(JSON.stringify(initialAdminAccounts));
+            }
+        }
+
+        function checkLoginStatus() {
+            loadingIndicator.classList.add('hidden');
+            const savedUser = localStorage.getItem('yukKonsulUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                if (currentUser.role) {
+                    showAppForAdmin(currentUser.role);
+                } else {
+                    loadJournalEntries();
+                    loadGoals();
+                    showAppForStudent();
+                }
+            } else {
+                loginChoiceSection.classList.remove('hidden');
+            }
+        }
+        
+        function renderStaticContent() {
+            document.getElementById('services-section').innerHTML = Object.values(servicesContent).map(data => `<div class="bg-slate-50 dark:bg-slate-700 p-6 rounded-xl transition-all card-hover flex flex-col"><div class="flex-shrink-0 w-14 h-14 ${data.color} rounded-lg flex items-center justify-center mb-4">${data.icon}</div><h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-white">${data.title}</h3><p class="text-gray-500 dark:text-gray-400 text-sm mb-4 flex-grow">${data.description}</p><div class="mt-auto">${data.button}</div></div>`).join('');
+            const createInfoCard = (key, data, type) => `<div class="bg-white dark:bg-slate-700/50 p-4 rounded-xl transition-all card-hover cursor-pointer flex items-center gap-4" onclick="openGeneralModal('${key}', '${type}')"><div class="flex-shrink-0 w-12 h-12 ${data.color} rounded-lg flex items-center justify-center">${data.icon}</div><div><h3 class="font-semibold text-gray-800 dark:text-white">${data.title}</h3><p class="text-teal-600 dark:text-teal-400 font-semibold text-sm">Baca Selengkapnya &rarr;</p></div></div>`;
+            document.getElementById('education-section').innerHTML = Object.keys(educationContent).map(key => createInfoCard(key, educationContent[key], 'education')).join('');
+            document.getElementById('academic-career-section').innerHTML = Object.keys(selectionPathContent).map(key => createInfoCard(key, selectionPathContent[key], 'selectionPath')).join('') + Object.keys(studyProgramContent).map(key => createInfoCard(key, studyProgramContent[key], 'studyProgram')).join('');
+            document.getElementById('university-section').innerHTML = Object.keys(universityContent).map(key => createInfoCard(key, universityContent[key], 'university')).join('');
+            const waGofarLink = document.getElementById('wa-gofar'); if (waGofarLink) waGofarLink.href = `https://wa.me/${counselors.gofar.phone}?text=Halo%20Pak%20Gofar,...`;
+            const waRohmanLink = document.getElementById('wa-rohman'); if (waRohmanLink) waRohmanLink.href = `https://wa.me/${counselors.rohman.phone}?text=Halo%20Pak%20Rohman,...`;
+        }
+
+        function renderCounselorCards() {
+            document.getElementById('counselor-list').innerHTML = Object.values(counselors).map(c => `<div id="${c.id}" class="counselor-card p-5 bg-white dark:bg-slate-700/50 border-2 border-transparent rounded-xl cursor-pointer transition-all hover:shadow-lg hover:border-teal-500" onclick="selectCounselor('${c.id}')"><div class="flex items-center space-x-4"><img src="https://placehold.co/80x80/e2e8f0/475569?text=${c.name.substring(4, 6)}" alt="Foto ${c.name}" class="w-20 h-20 rounded-full"><div><h3 class="text-xl font-semibold">${c.name}</h3><p class="text-gray-500 dark:text-gray-400">${c.title}</p></div></div></div>`).join('');
+        }
+        
+        // --- Alur Tampilan & Login/Logout ---
+        function handleStudentLogin() { const studentName = document.getElementById('studentName').value.trim(); if (!studentName) { document.getElementById('studentLoginError').classList.remove('hidden'); return; } document.getElementById('studentLoginError').classList.add('hidden'); currentUser = { name: studentName }; localStorage.setItem('yukKonsulUser', JSON.stringify(currentUser)); loadJournalEntries(); loadGoals(); showAppForStudent(); }
+        function handleAdminLogin() { 
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            const account = activeAdminAccounts[username];
+
+            if (account && account.password === password) {
+                currentUser = { name: account.name, role: username };
+                localStorage.setItem('yukKonsulUser', JSON.stringify(currentUser));
+                showAppForAdmin(username);
+            } else {
+                document.getElementById('adminLoginError').classList.remove('hidden');
+            }
+        }
+        function handleLogout() { localStorage.removeItem('yukKonsulUser'); currentUser = null; selectedCounselorId = null; [mainApp, adminLoginSection, studentLoginSection, journalSection, adminDashboardSection].forEach(el => el.classList.add('hidden')); loginChoiceSection.classList.remove('hidden'); document.getElementById('appointment').classList.add('hidden'); document.querySelectorAll('.counselor-card').forEach(c => c.classList.remove('selected-counselor'));}
+        function showAppForStudent() { document.getElementById('welcomeMessage').textContent = currentUser.name; [loginChoiceSection, studentLoginSection, adminLoginSection, adminDashboardSection].forEach(el => el.classList.add('hidden')); [mainApp, journalSection, document.getElementById('counselingSection'), document.getElementById('appointment'), document.getElementById('otherServicesSection'), document.getElementById('universityInfoSection'), document.getElementById('academicSection'), document.getElementById('educationMaterialSection'), document.getElementById('selfHelpSection')].forEach(el => el.classList.remove('hidden')); document.getElementById('accountSettingsButton').classList.add('hidden'); renderJournalSection();}
+        function showAppForAdmin(role) { document.getElementById('welcomeMessage').textContent = `${activeAdminAccounts[role].name} (Admin)`; [loginChoiceSection, studentLoginSection, adminLoginSection, journalSection, document.getElementById('selfHelpSection')].forEach(el => el.classList.add('hidden')); [mainApp, adminDashboardSection, document.getElementById('counselingSection'), document.getElementById('appointment'), document.getElementById('otherServicesSection'), document.getElementById('universityInfoSection'), document.getElementById('academicSection'), document.getElementById('educationMaterialSection')].forEach(el => el.classList.remove('hidden')); if(role !== 'superadmin') { document.getElementById('accountSettingsButton').classList.remove('hidden');} else {document.getElementById('accountSettingsButton').classList.add('hidden');} renderAdminDashboard(role); }
+        function showLogin(type) { loginChoiceSection.classList.add('hidden'); if (type === 'student') { studentLoginSection.classList.remove('hidden'); } else { adminLoginSection.classList.remove('hidden'); }}
+        function showLoginChoice() { [studentLoginSection, adminLoginSection, mainApp].forEach(el => el.classList.add('hidden')); loginChoiceSection.classList.remove('hidden'); }
+        
+        // --- Modals & UI Helpers ---
+        function openGeneralModal(key, type) { let data; if (type === 'education') data = educationContent[key]; else if (type === 'selectionPath') data = selectionPathContent[key]; else if (type === 'studyProgram') data = studyProgramContent[key]; else if (type === 'university') data = universityContent[key]; if(data) { document.getElementById('generalModalTitle').textContent = data.title; document.getElementById('generalModalContent').innerHTML = data.content; document.getElementById('generalModal').classList.remove('hidden');}}
+        function closeGeneralModal() { document.getElementById('generalModal').classList.add('hidden'); }
+        function showMotivation(isAnother = false) { if(!isAnother) document.getElementById('motivationModal').classList.remove('hidden'); document.getElementById('motivationQuote').textContent = `"${quoteList[Math.floor(Math.random() * quoteList.length)]}"`; }
+        function closeMotivation() { document.getElementById('motivationModal').classList.add('hidden'); }
+        function openConfirmModal(message, callback) { document.getElementById('confirmMessage').textContent = message; confirmCallback = callback; document.getElementById('confirmModal').classList.remove('hidden');}
+        function closeConfirmModal() { document.getElementById('confirmModal').classList.add('hidden'); confirmCallback = null; }
+        function openAccountSettingsModal() { 
+            document.getElementById('accountSettingsMessage').textContent = `Mengubah pengaturan untuk: ${currentUser.role}`;
+            document.getElementById('newUsername').value = currentUser.role;
+            ['newPassword','confirmNewPassword'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('accountChangeError').textContent = '';
+            document.getElementById('accountChangeError').classList.add('hidden');
+            document.getElementById('accountSettingsModal').classList.remove('hidden'); 
+        }
+        function closeAccountSettingsModal() { document.getElementById('accountSettingsModal').classList.add('hidden'); }
+
+        // --- Fitur Jurnal ---
+        function loadJournalEntries() { try { const saved = localStorage.getItem(`yukKonsulJournal_${currentUser.name}`); journalEntries = saved ? JSON.parse(saved) : []; } catch (e) { journalEntries = []; }}
+        function renderJournalSection() { const today = new Date().toLocaleDateString('id-ID'), entry = journalEntries.find(e => e.date === today); if (entry) { document.getElementById('journalInputSection').classList.add('hidden'); document.getElementById('savedMoodEmoji').textContent = entry.mood; document.getElementById('journalSavedSection').classList.remove('hidden'); } else { document.getElementById('journalSavedSection').classList.add('hidden'); document.getElementById('journalInputSection').classList.remove('hidden'); document.getElementById('journalNote').value = ''; selectMood(null); }}
+        function selectMood(mood) { selectedMood = mood; document.querySelectorAll('.mood-emoji').forEach(el => { el.classList.remove('selected'); if (el.textContent === mood) el.classList.add('selected'); }); }
+        function saveJournalEntry() { if (!selectedMood) { alert('Silakan pilih emoji perasaan.'); return; } const note = document.getElementById('journalNote').value, today = new Date().toLocaleDateString('id-ID'); journalEntries.push({ date: today, mood: selectedMood, note }); localStorage.setItem(`yukKonsulJournal_${currentUser.name}`, JSON.stringify(journalEntries)); renderJournalSection(); }
+        function openJournalHistoryModal() { const content = document.getElementById('journalHistoryContent'); content.innerHTML = journalEntries.length === 0 ? '<p class="text-center text-gray-500 dark:text-gray-400">Belum ada riwayat.</p>' : [...journalEntries].reverse().map(entry => `<div class="p-4 border-b dark:border-slate-600"><div class="flex items-start gap-4"><span class="text-3xl">${entry.mood}</span><div><p class="font-semibold text-gray-800 dark:text-white">${entry.date}</p><p class="text-gray-600 dark:text-gray-300">${entry.note || '<em>Tidak ada catatan.</em>'}</p></div></div></div>`).join(''); document.getElementById('journalHistoryModal').classList.remove('hidden'); }
+        function closeJournalHistoryModal() { document.getElementById('journalHistoryModal').classList.add('hidden'); }
+
+        // --- Fitur Konseling ---
+        function selectCounselor(id) { if (selectedCounselorId === id) return; selectedCounselorId = id; document.querySelectorAll('.counselor-card').forEach(c => c.classList.remove('selected-counselor')); document.getElementById(id).classList.add('selected-counselor'); document.getElementById('selectedCounselorName').textContent = counselors[id].name; document.getElementById('appointment').classList.remove('hidden'); document.getElementById('bookingConfirmation').classList.add('hidden'); generateTimeSlots(localAppointments[id].map(b => b.time)); }
+        function generateTimeSlots(bookedTimes = []) { const container = document.getElementById('timeSlots'); container.innerHTML = ''; for (let time = 6.5; time < 15; time += 0.5) { const hour = Math.floor(time), minute = (time % 1) * 60, timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`; const btn = document.createElement('button'); btn.textContent = timeString; btn.className = 'bg-slate-100 dark:bg-slate-700 text-gray-800 dark:text-white font-semibold py-3 px-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-all'; if (bookedTimes.includes(timeString)) { btn.classList.add('booked'); btn.disabled = true; } else { btn.onclick = () => bookSlot(timeString); } container.appendChild(btn); }}
+        function bookSlot(time) { if (!selectedCounselorId || !currentUser) return; if(currentUser.role){alert('Admin tidak dapat membuat janji temu.');return;} const booking = { counselorId: selectedCounselorId, counselorName: counselors[selectedCounselorId].name, time, studentName: currentUser.name, timestamp: new Date().toISOString() }; localAppointments[selectedCounselorId].push(booking); localStorage.setItem('yukKonsulAppointments', JSON.stringify(localAppointments)); document.getElementById('bookingConfirmation').textContent = `Berhasil membuat janji temu jam ${time}.`; document.getElementById('bookingConfirmation').classList.remove('hidden'); generateTimeSlots(localAppointments[selectedCounselorId].map(b => b.time)); }
+        
+        // --- Fitur Admin ---
+        function renderAdminDashboard(role) { 
+            const container = document.getElementById('adminDashboardContainer'); 
+            container.innerHTML = `<p class="text-center text-gray-500 dark:text-gray-400">Memuat...</p>`; 
+            const createTable = (title, headers, rows) => { 
+                let head = headers.map(h => `<th class="p-3 text-left font-semibold">${h}</th>`).join(''), 
+                    body = rows.length > 0 ? rows.map(row => `<tr>${row.map(cell => `<td class="p-3 border-t border-gray-200 dark:border-slate-700">${cell}</td>`).join('')}</tr>`).join('') : `<tr><td colspan="${headers.length}" class="text-center text-gray-400 py-4">Kosong.</td></tr>`; 
+                return `<div class="mb-8"><h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-white">${title}</h3><div class="overflow-x-auto rounded-lg border dark:border-slate-700"><table class="w-full text-sm text-left admin-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`; 
+            }; 
+            let html = ''; 
+            if (role === 'superadmin') { 
+                const all = [...localAppointments.gofar, ...localAppointments.rohman].sort((a,b) => a.time.localeCompare(b.time)); 
+                html += createTable('Semua Sesi', ['Konselor', 'Siswa', 'Waktu'], all.map(a => [a.counselorName, a.studentName, a.time])); 
+            } else { 
+                const id = role === 'gofaradmin' ? 'gofar' : 'rohman'; 
+                const appts = localAppointments[id].sort((a,b) => a.time.localeCompare(b.time)); 
+                const name = counselors[id].name; 
+                html += createTable(`Sesi ${name}`, ['Siswa', 'Waktu'], appts.map(a => [a.studentName, a.time])); 
+            } 
+            container.innerHTML = html; 
+        }
+        function handleAccountChange() {
+            const errEl = document.getElementById('accountChangeError');
+            const successEl = document.getElementById('accountSettingsMessage');
+            const newUsername = document.getElementById('newUsername').value.trim();
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            const currentRole = currentUser.role;
+
+            errEl.classList.add('hidden');
+            successEl.textContent = '';
+            
+            if (!newUsername) { errEl.textContent = "Username baru tidak boleh kosong."; errEl.classList.remove('hidden'); return; }
+            if (newPassword && newPassword !== confirmNewPassword) { errEl.textContent = "Konfirmasi password baru tidak cocok."; errEl.classList.remove('hidden'); return; }
+
+            if (newUsername !== currentRole && activeAdminAccounts[newUsername]) {
+                errEl.textContent = "Username tersebut sudah digunakan."; errEl.classList.remove('hidden'); return;
+            }
+
+            const oldAccountData = activeAdminAccounts[currentRole];
+            delete activeAdminAccounts[currentRole];
+
+            activeAdminAccounts[newUsername] = {
+                name: oldAccountData.name,
+                password: newPassword ? newPassword : oldAccountData.password
+            };
+
+            currentUser.role = newUsername;
+            currentUser.name = oldAccountData.name;
+            localStorage.setItem('yukKonsulUser', JSON.stringify(currentUser));
+            localStorage.setItem('yukKonsulAdminAccounts', JSON.stringify(activeAdminAccounts));
+            
+            successEl.textContent = "Pengaturan berhasil disimpan! Anda akan logout untuk menerapkan perubahan.";
+            setTimeout(() => {
+                closeAccountSettingsModal();
+                handleLogout();
+            }, 2000);
+        }
+
+        // --- Fitur Tujuan (Goals) ---
+        function loadGoals() { try { const saved = localStorage.getItem(`yukKonsulGoals_${currentUser.name}`); userGoals = saved ? JSON.parse(saved) : []; } catch(e){ userGoals = []; } }
+        function saveGoals() { localStorage.setItem(`yukKonsulGoals_${currentUser.name}`, JSON.stringify(userGoals)); }
+        function renderGoals() { const list = document.getElementById('goalList'); list.innerHTML = userGoals.length > 0 ? userGoals.map(goal => `<div class="flex items-center justify-between p-3 rounded-lg ${goal.status === 'completed' ? 'bg-green-100 dark:bg-green-900/50' : 'bg-slate-100 dark:bg-slate-700'}"><p class="${goal.status === 'completed' ? 'line-through text-gray-500 dark:text-gray-400' : ''}">${goal.text}</p><div class="flex gap-2">${goal.status === 'in-progress' ? `<button onclick="toggleGoalStatus(${goal.id})" class="text-green-500 hover:text-green-600">Selesai</button>` : `<button onclick="toggleGoalStatus(${goal.id})" class="text-yellow-500 hover:text-yellow-600">Buka</button>`}<button onclick="deleteGoal(${goal.id})" class="text-red-500 hover:text-red-600">Hapus</button></div></div>`).join('') : '<p class="text-center text-gray-500 dark:text-gray-400">Belum ada tujuan. Ayo buat satu!</p>';}
+        function addGoal() { const input = document.getElementById('newGoalInput'); if(input.value.trim()){ userGoals.push({id: Date.now(), text: input.value.trim(), status: 'in-progress'}); saveGoals(); renderGoals(); input.value = ''; }}
+        function toggleGoalStatus(id) { const goal = userGoals.find(g => g.id === id); if(goal) { goal.status = goal.status === 'in-progress' ? 'completed' : 'in-progress'; saveGoals(); renderGoals(); }}
+        function deleteGoal(id) { openConfirmModal('Yakin ingin menghapus tujuan ini?', () => { userGoals = userGoals.filter(g => g.id !== id); saveGoals(); renderGoals(); }); }
+        function openGoalModal() { renderGoals(); document.getElementById('goalModal').classList.remove('hidden'); }
+        function closeGoalModal() { document.getElementById('goalModal').classList.add('hidden'); }
+
+        // --- Fitur Tema ---
+        function toggleTheme() { const html = document.documentElement; if (html.classList.contains('dark')) { html.classList.remove('dark'); localStorage.setItem('yukKonsulTheme', 'light'); } else { html.classList.add('dark'); localStorage.setItem('yukKonsulTheme', 'dark'); } updateThemeIcon(); }
+        function updateThemeIcon() { const isDark = document.documentElement.classList.contains('dark'); document.getElementById('theme-icon-light').style.display = isDark ? 'none' : 'block'; document.getElementById('theme-icon-dark').style.display = isDark ? 'block' : 'none'; }
+        
+        // --- Ekspor Fungsi ke Window ---
+        Object.assign(window, {
+            showLogin, showLoginChoice, handleStudentLogin, handleAdminLogin, handleLogout,
+            selectCounselor, bookSlot,
+            openGeneralModal, closeGeneralModal,
+            selectMood, saveJournalEntry, openJournalHistoryModal, closeJournalHistoryModal,
+            toggleTheme, openGoalModal, closeGoalModal, addGoal, toggleGoalStatus, deleteGoal,
+            showMotivation, closeMotivation, openAccountSettingsModal, closeAccountSettingsModal, handleAccountChange
+        });
+    </script>
+</body>
+</html>
